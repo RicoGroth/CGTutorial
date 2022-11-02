@@ -11,7 +11,7 @@
 std::vector<glm::vec3> vertices;
 std::vector<glm::vec2> uvs;
 std::vector<glm::vec3> normals; 
-bool res = loadOBJ("teapot.obj", vertices, uvs, normals);
+bool res = loadOBJ(RESSOURCES_DIR "/teapot.obj", vertices, uvs, normals);
 
 // Jedes Objekt eigenem VAO zuordnen, damit mehrere Objekte moeglich sind
 // VAOs sind Container fuer mehrere Buffer, die zusammen gesetzt werden sollen.
@@ -23,7 +23,7 @@ glBindVertexArray(VertexArrayIDTeapot);
 GLuint vertexbuffer;
 glGenBuffers(1, &vertexbuffer); // Kennung erhalten
 glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer); // Daten zur Kennung definieren
-// Buffer zugreifbar für die Shader machen
+// Buffer zugreifbar fï¿½r die Shader machen
 glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
 
 // Erst nach glEnableVertexAttribArray kann DrawArrays auf die Daten zugreifen...

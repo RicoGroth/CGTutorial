@@ -7,7 +7,7 @@ glUniformMatrix4fv(glGetUniformLocation(programID, "P"), 1, GL_FALSE, &Projectio
 ---------------------------------------------------------------------------------------------
 
 
-GLuint normalbuffer; // Hier alles analog für Normalen in location == 2
+GLuint normalbuffer; // Hier alles analog fï¿½r Normalen in location == 2
 glGenBuffers(1, &normalbuffer);
 glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
 glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
@@ -17,7 +17,7 @@ glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 ---------------------------------------------------------------------------------------------
 
 ### Achtung die folgende Zeile ersetzt eine andere ######
-programID = LoadShaders("StandardShading.vertexshader", "StandardShading.fragmentshader");
+programID = LoadShaders(SHADER_DIR "/StandardShading.vertexshader", SHADER_DIR "/StandardShading.fragmentshader");
 
 ---------------------------------------------------------------------------------------------
 

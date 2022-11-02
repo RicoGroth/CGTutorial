@@ -1,5 +1,5 @@
 // Include Standardheader, steht bei jedem C/C++-Programm am Anfang
-#include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <vector>
 
@@ -39,6 +39,11 @@ using namespace glm;
 // kuemmert sich um den Pfad zu den Shadern
 #include "asset.hpp"
 
+// Objekte laden
+#include "objloader.hpp"
+
+#include "texture.hpp"
+
 // Callback-Mechanismen gibt es in unterschiedlicher Form in allen m�glichen Programmiersprachen,
 // sehr h�ufig in interaktiven graphischen Anwendungen. In der Programmiersprache C werden dazu 
 // Funktionspointer verwendet. Man �bergibt einer aufgerufenen Funktion einer Bibliothek einen
@@ -51,31 +56,16 @@ void error_callback(int error, const char* description)
 	// Mit fputs gibt man hier den String auf den Standarderror-Kanal aus.
 	// In der C-Welt, aus der das hier �bernommen ist, sind Strings Felder aus "char"s, die mit 
 	// dem Wert null terminiert werden.
-	fputs(description, stderr);
+	std::cerr << description << '\n';
 }
 
-// Diese Funktion wird ebenfalls �ber Funktionspointer der GLFW-Bibliothek �bergeben.
-// (Die Signatur ist hier besonders wichtig. Wir sehen, dass hier drei Parameter definiert
-//  werden m�ssen, die gar nicht verwendet werden.)
-// Generell �berlassen wir der GLFW-Bibliothek die Behandlung der Input-Ereignisse (Mouse moved,
-// button click, Key pressed, etc.).
-// Durch die �bergabe dieser Funktion k�nnen wir Keyboard-Events 
-// abfangen. Mouse-Events z. B. erhalten wir nicht, da wir keinen Callback an GLFW �bergeben.
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-	switch (key)
-	{
-	// Mit rechte Mousetaste -> gehe zu Deklaration finden Sie andere Konstanten f�r Tasten.
-	case GLFW_KEY_ESCAPE:
-		// Das Programm wird beendet, wenn BenutzerInnen die Escapetaste bet�tigen.
-		// Wir k�nnten hier direkt die C-Funktion "exit" aufrufen, eleganter ist aber, GLFW mitzuteilen
-		// dass wir das Fenster schliessen wollen (siehe Schleife unten).
-		glfwSetWindowShouldClose(window, GL_TRUE);
-		break;
+bool x_is_pressed{false};
+bool y_is_pressed{false};
+bool z_is_pressed{false};
 
-	default:
-		break;
-	}
+bool do_rotate()
+{
+	return x_is_pressed || y_is_pressed || z_is_pressed;
 }
 
 
@@ -88,6 +78,48 @@ glm::mat4 Model;
 GLuint programID; // OpenGL unterst�tzt unterschiedliche Shaderprogramme, zwischen denen man
                   // wechseln kann. Unser Programm wird mit der unsigned-integer-Variable programID
                   // referenziert.
+
+// Diese Funktion wird ebenfalls �ber Funktionspointer der GLFW-Bibliothek �bergeben.
+// (Die Signatur ist hier besonders wichtig. Wir sehen, dass hier drei Parameter definiert
+//  werden m�ssen, die gar nicht verwendet werden.)
+// Generell �berlassen wir der GLFW-Bibliothek die Behandlung der Input-Ereignisse (Mouse moved,
+// button click, Key pressed, etc.).
+// Durch die �bergabe dieser Funktion k�nnen wir Keyboard-Events 
+// abfangen. Mouse-Events z. B. erhalten wir nicht, da wir keinen Callback an GLFW �bergeben.
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if(action == GLFW_PRESS)
+	{
+		switch (key)
+		{
+		// Mit rechte Mousetaste -> gehe zu Deklaration finden Sie andere Konstanten f�r Tasten.
+		case GLFW_KEY_ESCAPE:
+			// Das Programm wird beendet, wenn BenutzerInnen die Escapetaste bet�tigen.
+			// Wir k�nnten hier direkt die C-Funktion "exit" aufrufen, eleganter ist aber, GLFW mitzuteilen
+			// dass wir das Fenster schliessen wollen (siehe Schleife unten).
+			glfwSetWindowShouldClose(window, GL_TRUE);
+			break;
+		case GLFW_KEY_1:
+			x_is_pressed = !x_is_pressed;
+			break;
+		case GLFW_KEY_2:
+			y_is_pressed = !y_is_pressed;
+			break;
+		case GLFW_KEY_3:
+			z_is_pressed = !z_is_pressed;
+			break;
+		case GLFW_KEY_SPACE:
+			Model = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
+			x_is_pressed = false;
+			y_is_pressed = false;
+			z_is_pressed = false;
+			break;
+		default:
+			break;
+		}
+		std::cout << '(' << x_is_pressed << ',' << y_is_pressed << ',' << z_is_pressed << ")\n";
+	}
+}
 
 // Ich habe Ihnen hier eine Hilfsfunktion definiert, die wir verwenden, um die Transformationsmatrizen
 // zwischen dem OpenGL-Programm auf der CPU und den Shaderprogrammen in den GPUs zu synchronisieren.
@@ -110,15 +142,18 @@ void sendMVP()
 	// in den Adressraum der GPUs. Beim ersten Parameter 
 	// muss eine Referenz auf eine Variable im Adressraum der GPU angegeben werden.
 	glUniformMatrix4fv(glGetUniformLocation(programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(programID, "M"), 1, GL_FALSE, &Model[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(programID, "V"), 1, GL_FALSE, &View[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(programID, "P"), 1, GL_FALSE, &Projection[0][0]);
 }
 
 // Einstiegspunkt f�r C- und C++-Programme (Funktion), Konsolenprogramme k�nnte hier auch Parameter erwarten
-int main(void)
+int main()
 {
 	// Initialisierung der GLFW-Bibliothek
 	if (!glfwInit())
 	{
-		fprintf(stderr, "Failed to initialize GLFW\n");
+		std::cerr << "Failed to initialize GLFW\n";
 		exit(EXIT_FAILURE);
 	}
 
@@ -158,7 +193,7 @@ int main(void)
 
 	if (glewInit() != GLEW_OK)
 	{
-		fprintf(stderr, "Failed to initialize GLEW\n");
+		std::cerr << "Failed to initialize GLEW\n";
 		return -1;
 	}
 
@@ -170,14 +205,68 @@ int main(void)
 	// Der Wertebereich in OpenGL geht nicht von 0 bis 255, sondern von 0 bis 1, hier sind Werte
 	// fuer R, G und B angegeben, der vierte Wert alpha bzw. Transparenz ist beliebig, da wir keine
 	// Transparenz verwenden. Zu den Farben sei auf die entsprechende Vorlesung verwiesen !
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
 	// Kreieren von Shadern aus den angegebenen Dateien, kompilieren und linken und in
 	// die Grafikkarte �bertragen.  
-	programID = LoadShaders(SHADER_DIR "/TransformVertexShader.vertexshader", SHADER_DIR "/ColorFragmentShader.fragmentshader");
-
+	programID = LoadShaders(SHADER_DIR "/StandardShading.vertexshader", SHADER_DIR "/StandardShading.fragmentshader");
+	
+	// Modelmatrix : Hier auf Einheitsmatrix gesetzt, was bedeutet, dass die Objekte sich im Ursprung
+	// des Weltkoordinatensystems befinden.
+	Model = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
+	
 	// Diesen Shader aktivieren ! (Man kann zwischen Shadern wechseln.) 
 	glUseProgram(programID);
+
+	GLuint VertexArrayIDTeapot{};
+	// Ein ArrayBuffer speichert Daten zu Eckpunkten (hier xyz bzw. Position)
+	GLuint vertexbuffer{};
+	GLuint normalbuffer{}; // Hier alles analog f�r Normalen in location == 2
+	GLuint uvbuffer{}; // Hier alles analog f�r Texturkoordinaten in location == 1 (2 floats u und v!)
+	GLuint Texture{loadBMP_custom(RESOURCES_DIR "/mandrill.bmp")};
+	std::vector<glm::vec3> vertices{};
+	std::vector<glm::vec2> uvs;
+	std::vector<glm::vec3> normals; 
+	loadOBJ(RESOURCES_DIR "/teapot.obj", vertices, uvs, normals);
+
+	// Jedes Objekt eigenem VAO zuordnen, damit mehrere Objekte moeglich sind
+	// VAOs sind Container fuer mehrere Buffer, die zusammen gesetzt werden sollen.
+	glGenVertexArrays(1, &VertexArrayIDTeapot);
+	glBindVertexArray(VertexArrayIDTeapot);
+		
+	glGenBuffers(1, &vertexbuffer); // Kennung erhalten
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer); // Daten zur Kennung definieren
+	// Buffer zugreifbar f�r die Shader machen
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+
+	// Erst nach glEnableVertexAttribArray kann DrawArrays auf die Daten zugreifen...
+	glEnableVertexAttribArray(0); // siehe layout im vertex shader: location = 0 
+	glVertexAttribPointer(0,  // location = 0 
+				3,  // Datenformat vec3: 3 floats fuer xyz 
+				GL_FLOAT, 
+				GL_FALSE, // Fixedpoint data normalisieren ?
+				0, // Eckpunkte direkt hintereinander gespeichert
+				(void*) 0); // abweichender Datenanfang ?
+
+	glGenBuffers(1, &normalbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2); // siehe layout im vertex shader 
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+	glGenBuffers(1, &uvbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1); // siehe layout im vertex shader 
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+	glm::vec3 lightPos = glm::vec3(4,4,-4);
+	glUniform3f(glGetUniformLocation(programID, "LightPosition_worldspace"), lightPos.x, lightPos.y, lightPos.z);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	float angle{0.01f};
 
 	// Alles ist vorbereitet, jetzt kann die Eventloop laufen...
 	while (!glfwWindowShouldClose(window))
@@ -185,8 +274,8 @@ int main(void)
 		// L�schen des Bildschirms (COLOR_BUFFER), man kann auch andere Speicher zus�tzlich l�schen, 
 		// kommt in sp�teren �bungen noch...
 		// Per Konvention sollte man jedes Bild mit dem L�schen des Bildschirms beginnen, muss man aber nicht...
-		glClear(GL_COLOR_BUFFER_BIT);	
-
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+		glBindVertexArray(VertexArrayIDTeapot);
 		// Einstellen der Geometrischen Transformationen
 		// Wir verwenden dazu die Funktionen aus glm.h
 		// Projektionsmatrix mit 45Grad horizontalem �ffnungswinkel, 4:3 Seitenverh�ltnis, 
@@ -202,15 +291,16 @@ int main(void)
 		View = glm::lookAt(glm::vec3(0,0,-5), // die Kamera ist bei (0,0,-5), in Weltkoordinaten
 						   glm::vec3(0,0,0),  // und schaut in den Ursprung
 						   glm::vec3(0,1,0)); // Oben ist bei (0,1,0), das ist die y-Achse
-	
-		
-		// Modelmatrix : Hier auf Einheitsmatrix gesetzt, was bedeutet, dass die Objekte sich im Ursprung
-		// des Weltkoordinatensystems befinden.
-		Model = glm::mat4(1.0f);
+
+		if(x_is_pressed || y_is_pressed || z_is_pressed)
+		{
+			Model = glm::rotate(Model, angle, glm::vec3{x_is_pressed, y_is_pressed, z_is_pressed});
+		}
 
 		// Diese Informationen (Projection, View, Model) m�ssen geeignet der Grafikkarte �bermittelt werden,
 		// damit sie beim Zeichnen von Objekten ber�cksichtigt werden k�nnen.
 		sendMVP();
+
 
 		// Nachdem der GC in der Grafikkarte aktuell ist, also z. B. auch ein sendMVP ausgef�hrt wurde,
 		// zeichen wir hier nun einen W�rfel. Dazu werden in "drawWireCube" die Eckpunkte zur Grafikkarte 
@@ -218,7 +308,8 @@ int main(void)
 		// Das werden wir uns sp�ter noch genauer anschauen. (Schauen Sie sich die schwarzen Linien genau an,
 		// und �berlegen Sie sich, dass das wirklich ein W�rfel ist, der perspektivisch verzerrt ist.)
 		// Die Darstellung nennt man �brigens "im Drahtmodell".
-		drawWireCube();		
+		// drawCube();
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());		
 
 		// Bildende. 
 		// Bilder werden in den Bildspeicher gezeichnet (so schnell wie es geht.). 
@@ -242,6 +333,8 @@ int main(void)
 	// wir kommen an diese Stelle. Hier k�nnen wir aufr�umen, und z. B. das Shaderprogramm in der
 	// Grafikkarte l�schen. (Das macht zurnot das OS aber auch automatisch.)
 	glDeleteProgram(programID);
+	glDeleteBuffers(1, &normalbuffer);
+	glDeleteBuffers(1, &vertexbuffer);
 
 	// Schie�en des OpenGL-Fensters und beenden von GLFW.
 	glfwTerminate();
