@@ -1,5 +1,5 @@
 // Include Standardheader, steht bei jedem C/C++-Programm am Anfang
-#include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <vector>
 
@@ -39,15 +39,10 @@ using namespace glm;
 // kuemmert sich um den Pfad zu den Shadern
 #include "asset.hpp"
 
-#include "iostream"
+// Objekte laden
 #include "objloader.hpp"
-#include "texture.hpp"
 
-float x_angle, y_angle, z_angle = 0.0f;
-float roboter_rot[4]{};
-float x_pos, y_pos, z_pos = 0.0f;
-bool rot = false;
-bool modules[3]{};
+#include "texture.hpp"
 
 // Callback-Mechanismen gibt es in unterschiedlicher Form in allen m�glichen Programmiersprachen,
 // sehr h�ufig in interaktiven graphischen Anwendungen. In der Programmiersprache C werden dazu
@@ -61,15 +56,27 @@ void error_callback(int error, const char *description)
 	// Mit fputs gibt man hier den String auf den Standarderror-Kanal aus.
 	// In der C-Welt, aus der das hier �bernommen ist, sind Strings Felder aus "char"s, die mit
 	// dem Wert null terminiert werden.
-	fputs(description, stderr);
+	std::cerr << description << '\n';
 }
 
-int getModule()
+bool x_is_pressed{false};
+bool y_is_pressed{false};
+bool z_is_pressed{false};
+
+bool do_rotate()
 {
-	if(modules[1]) return 1;
-	if(modules[2]) return 2;
-	return 0;
+	return x_is_pressed || y_is_pressed || z_is_pressed;
 }
+
+// Diese drei Matrizen speichern wir global (Singleton-Muster), damit sie jederzeit modifiziert und
+// an die Grafikkarte geschickt werden koennen. Ihre Bedeutung habe ich in der Vorlesung Geometrische
+// Transformationen erkl�rt, falls noch nicht geschehen, jetzt anschauen !
+glm::mat4 Projection;
+glm::mat4 View;
+glm::mat4 Model;
+GLuint programID; // OpenGL unterst�tzt unterschiedliche Shaderprogramme, zwischen denen man
+				  // wechseln kann. Unser Programm wird mit der unsigned-integer-Variable programID
+				  // referenziert.
 
 // Diese Funktion wird ebenfalls �ber Funktionspointer der GLFW-Bibliothek �bergeben.
 // (Die Signatur ist hier besonders wichtig. Wir sehen, dass hier drei Parameter definiert
@@ -80,81 +87,38 @@ int getModule()
 // abfangen. Mouse-Events z. B. erhalten wir nicht, da wir keinen Callback an GLFW �bergeben.
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-	std::cout << "Modul: " << getModule() << '\n';
-	switch (key)
+	if (action == GLFW_PRESS)
 	{
-	// Mit rechte Mousetaste -> gehe zu Deklaration finden Sie andere Konstanten f�r Tasten.
-	case GLFW_KEY_ESCAPE:
-		// Das Programm wird beendet, wenn BenutzerInnen die Escapetaste bet�tigen.
-		// Wir k�nnten hier direkt die C-Funktion "exit" aufrufen, eleganter ist aber, GLFW mitzuteilen
-		// dass wir das Fenster schliessen wollen (siehe Schleife unten).
-		glfwSetWindowShouldClose(window, GL_TRUE);
-		break;
-	case GLFW_KEY_UP:
-		y_pos += 0.1f;
-		break;
-	case GLFW_KEY_DOWN:
-		y_pos -= 0.1f;
-		break;
-	case GLFW_KEY_LEFT:
-		x_pos += 0.1f;
-		break;
-	case GLFW_KEY_RIGHT:
-		x_pos -= 0.1f;
-		break;
-	case GLFW_KEY_0:
-		z_pos += 0.1f;
-		break;
-	case GLFW_KEY_9:
-		z_pos -= 0.1f;
-		break;
-	case GLFW_KEY_SPACE:
-		roboter_rot[3] += 0.05f;
-		break;
-	case GLFW_KEY_1:
-		x_angle += 0.1f;
-		break;
-	case GLFW_KEY_2:
-		y_angle += 0.1f;
-		break;
-	case GLFW_KEY_3:
-		z_angle += 0.1f;
-		break;
-	case GLFW_KEY_A:
-		modules[0] = true; modules[1] = false; modules[2] = false;
-		break;
-	case GLFW_KEY_S:
-		modules[0] = false; modules[1] = true; modules[2] = false;
-		break;
-	case GLFW_KEY_D:
-		modules[0] = false; modules[1] = false; modules[2] = true;
-		break;
-	case GLFW_KEY_J:
-		if(modules[0]) roboter_rot[0] += 0.05f;
-		else if(modules[1]) roboter_rot[1] += 0.05f;
-		else if(modules[2]) roboter_rot[2] += 0.05f;
-		break;
-	default:
-		break;
+		switch (key)
+		{
+		// Mit rechte Mousetaste -> gehe zu Deklaration finden Sie andere Konstanten f�r Tasten.
+		case GLFW_KEY_ESCAPE:
+			// Das Programm wird beendet, wenn BenutzerInnen die Escapetaste bet�tigen.
+			// Wir k�nnten hier direkt die C-Funktion "exit" aufrufen, eleganter ist aber, GLFW mitzuteilen
+			// dass wir das Fenster schliessen wollen (siehe Schleife unten).
+			glfwSetWindowShouldClose(window, GL_TRUE);
+			break;
+		case GLFW_KEY_1:
+			x_is_pressed = !x_is_pressed;
+			break;
+		case GLFW_KEY_2:
+			y_is_pressed = !y_is_pressed;
+			break;
+		case GLFW_KEY_3:
+			z_is_pressed = !z_is_pressed;
+			break;
+		case GLFW_KEY_SPACE:
+			Model = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
+			x_is_pressed = false;
+			y_is_pressed = false;
+			z_is_pressed = false;
+			break;
+		default:
+			break;
+		}
+		std::cout << '(' << x_is_pressed << ',' << y_is_pressed << ',' << z_is_pressed << ")\n";
 	}
 }
-
-void print_usage()
-{
-	std::cout << "\n\n********************************************************\nMove: Arrowkeys \nZoom: '0' / '9' \nToggle Rotation: Space \n";
-	std::cout << "********************************************************\n\n\n";
-}
-
-// Diese drei Matrizen speichern wir global (Singleton-Muster), damit sie jederzeit modifiziert und
-// an die Grafikkarte geschickt werden koennen. Ihre Bedeutung habe ich in der Vorlesung Geometrische
-// Transformationen erkl�rt, falls noch nicht geschehen, jetzt anschauen !
-glm::mat4 Projection;
-glm::mat4 View;
-glm::mat4 Model;
-
-GLuint programID; // OpenGL unterst�tzt unterschiedliche Shaderprogramme, zwischen denen man
-				  // wechseln kann. Unser Programm wird mit der unsigned-integer-Variable programID
-				  // referenziert.
 
 // Ich habe Ihnen hier eine Hilfsfunktion definiert, die wir verwenden, um die Transformationsmatrizen
 // zwischen dem OpenGL-Programm auf der CPU und den Shaderprogrammen in den GPUs zu synchronisieren.
@@ -177,7 +141,6 @@ void sendMVP()
 	// in den Adressraum der GPUs. Beim ersten Parameter
 	// muss eine Referenz auf eine Variable im Adressraum der GPU angegeben werden.
 	glUniformMatrix4fv(glGetUniformLocation(programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
 	glUniformMatrix4fv(glGetUniformLocation(programID, "M"), 1, GL_FALSE, &Model[0][0]);
 	glUniformMatrix4fv(glGetUniformLocation(programID, "V"), 1, GL_FALSE, &View[0][0]);
 	glUniformMatrix4fv(glGetUniformLocation(programID, "P"), 1, GL_FALSE, &Projection[0][0]);
@@ -186,54 +149,30 @@ void sendMVP()
 void zeichneKS()
 {
 	glm::mat4 Save = Model;
-
-	Model = glm::scale(Model, glm::vec3(10.0f, 0.005f, 0.005f));
+	// TODO: Werte fuer glm::vec3 setzen
+	Model = glm::scale(Model, glm::vec3());
 	sendMVP();
 	drawCube();
 	Model = Save;
 
-	Model = glm::scale(Model, glm::vec3(0.005f, 10.0f, 0.005f));
+	Model = glm::scale(Model, glm::vec3());
 	sendMVP();
 	drawCube();
 	Model = Save;
 
-	Model = glm::scale(Model, glm::vec3(0.005f, 0.005f, 10.0f));
+	Model = glm::scale(Model, glm::vec3());
 	sendMVP();
 	drawCube();
-	Model = Save;
-}
-
-void zeichneSeg(float h)
-{
-	glm::mat4 Save = Model;
-	Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, h));
-	Model = glm::scale(Model, glm::vec3(0.2f, 0.2f, h));
-	sendMVP();
-	drawSphere(10, 10);
-	Model = Save;
-}
-
-void zeichneRoboter(float height)
-{
-	glm::mat4 Save = Model;
-	Model = glm::rotate(Model, roboter_rot[2], glm::vec3(1.0f, 0.0f, 0.0f));
-	zeichneSeg(height);
-	Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 2 * height));
-	Model = glm::rotate(Model, roboter_rot[1], glm::vec3(1.0f, 0.0f, 0.0f));
-	zeichneSeg(height);
-	Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 2 * height));
-	Model = glm::rotate(Model, roboter_rot[0], glm::vec3(1.0f, 0.0f, 0.0f));
-	zeichneSeg(height);
 	Model = Save;
 }
 
 // Einstiegspunkt f�r C- und C++-Programme (Funktion), Konsolenprogramme k�nnte hier auch Parameter erwarten
-int main(void)
+int main()
 {
 	// Initialisierung der GLFW-Bibliothek
 	if (!glfwInit())
 	{
-		fprintf(stderr, "Failed to initialize GLFW\n");
+		std::cerr << "Failed to initialize GLFW\n";
 		exit(EXIT_FAILURE);
 	}
 
@@ -273,7 +212,7 @@ int main(void)
 
 	if (glewInit() != GLEW_OK)
 	{
-		fprintf(stderr, "Failed to initialize GLEW\n");
+		std::cerr << "Failed to initialize GLEW\n";
 		return -1;
 	}
 
@@ -285,66 +224,31 @@ int main(void)
 	// Der Wertebereich in OpenGL geht nicht von 0 bis 255, sondern von 0 bis 1, hier sind Werte
 	// fuer R, G und B angegeben, der vierte Wert alpha bzw. Transparenz ist beliebig, da wir keine
 	// Transparenz verwenden. Zu den Farben sei auf die entsprechende Vorlesung verwiesen !
-	glClearColor(1.0f, 1.0f, 0.6f, 0.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
 	// Kreieren von Shadern aus den angegebenen Dateien, kompilieren und linken und in
 	// die Grafikkarte �bertragen.
-	// programID = LoadShaders(SHADER_DIR "/TransformVertexShader.vertexshader", SHADER_DIR "/ColorFragmentShader.fragmentshader");
 	programID = LoadShaders(SHADER_DIR "/StandardShading.vertexshader", SHADER_DIR "/StandardShading.fragmentshader");
 
 	// Diesen Shader aktivieren ! (Man kann zwischen Shadern wechseln.)
 	glUseProgram(programID);
 
-	print_usage();
-
-	GLuint normalbuffer;
-	GLuint vertexbuffer;
-	GLuint uvbuffer;
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	////    Teapot Action
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	std::vector<glm::vec3> vertices;
-	std::vector<glm::vec2> uvs;
-	std::vector<glm::vec3> normals;
+	GLuint VertexArrayIDTeapot{};
+	// Ein ArrayBuffer speichert Daten zu Eckpunkten (hier xyz bzw. Position)
+	GLuint vertexbuffer{};
+	GLuint normalbuffer{}; // Hier alles analog f�r Normalen in location == 2
+	GLuint uvbuffer{};	   // Hier alles analog f�r Texturkoordinaten in location == 1 (2 floats u und v!)
+	loadBMP_custom(RESOURCES_DIR "/mandrill.bmp");
+	std::vector<glm::vec3> vertices{};
+	std::vector<glm::vec2> uvs{};
+	std::vector<glm::vec3> normals{};
 	loadOBJ(RESOURCES_DIR "/teapot.obj", vertices, uvs, normals);
 
 	// Jedes Objekt eigenem VAO zuordnen, damit mehrere Objekte moeglich sind
 	// VAOs sind Container fuer mehrere Buffer, die zusammen gesetzt werden sollen.
-	GLuint VertexArrayIDTeapot;
 	glGenVertexArrays(1, &VertexArrayIDTeapot);
 	glBindVertexArray(VertexArrayIDTeapot);
 
-	// 7
-
-	// Load the texture
-	GLuint Texture = loadBMP_custom(RESOURCES_DIR "/mandrill.bmp");
-
-	// Bind our texture in Texture Unit 0
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, Texture);
-
-	/// 6
-	// GLuint normalbuffer; // Hier alles analog f�r Normalen in location == 2
-	glGenBuffers(1, &normalbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(2); // siehe layout im vertex shader
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-	/// 7
-	// GLuint uvbuffer; // Hier alles analog f�r Texturkoordinaten in location == 1 (2 floats u und v!)
-	glGenBuffers(1, &uvbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1); // siehe layout im vertex shader
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-	// Set our "myTextureSampler" sampler to user Texture Unit 0
-	glUniform1i(glGetUniformLocation(programID, "myTextureSampler"), 0);
-
-	// Ein ArrayBuffer speichert Daten zu Eckpunkten (hier xyz bzw. Position)
-	// GLuint vertexbuffer;
 	glGenBuffers(1, &vertexbuffer);				 // Kennung erhalten
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer); // Daten zur Kennung definieren
 	// Buffer zugreifbar f�r die Shader machen
@@ -359,19 +263,34 @@ int main(void)
 						  0,		  // Eckpunkte direkt hintereinander gespeichert
 						  (void *)0); // abweichender Datenanfang ?
 
-	// Light
+	glGenBuffers(1, &normalbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2); // siehe layout im vertex shader
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+	glGenBuffers(1, &uvbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1); // siehe layout im vertex shader
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
 	glm::vec3 lightPos = glm::vec3(4, 4, -4);
 	glUniform3f(glGetUniformLocation(programID, "LightPosition_worldspace"), lightPos.x, lightPos.y, lightPos.z);
-	// Alles ist vor	print_usage();bereitet, jetzt kann die Eventloop laufen...
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	float angle{0.01f};
+
+	// Alles ist vorbereitet, jetzt kann die Eventloop laufen...
 	while (!glfwWindowShouldClose(window))
 	{
-
 		// L�schen des Bildschirms (COLOR_BUFFER), man kann auch andere Speicher zus�tzlich l�schen,
 		// kommt in sp�teren �bungen noch...
 		// Per Konvention sollte man jedes Bild mit dem L�schen des Bildschirms beginnen, muss man aber nicht...
-
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
+		glBindVertexArray(VertexArrayIDTeapot);
 		// Einstellen der Geometrischen Transformationen
 		// Wir verwenden dazu die Funktionen aus glm.h
 		// Projektionsmatrix mit 45Grad horizontalem �ffnungswinkel, 4:3 Seitenverh�ltnis,
@@ -390,30 +309,19 @@ int main(void)
 
 		// Modelmatrix : Hier auf Einheitsmatrix gesetzt, was bedeutet, dass die Objekte sich im Ursprung
 		// des Weltkoordinatensystems befinden.
-		Model = glm::mat4(1.0f);
-
-		Model = glm::translate(Model, glm::vec3(x_pos, 0.0f, 0.0f));
-		Model = glm::translate(Model, glm::vec3(0.0f, y_pos, 0.0f));
-		Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, z_pos));
-		Model = glm::rotate(Model, x_angle, glm::vec3(1.0f, 0.0f, 0.0f));
-		Model = glm::rotate(Model, y_angle, glm::vec3(0.0f, 1.0f, 0.0f));
-		Model = glm::rotate(Model, z_angle, glm::vec3(0.0f, 0.0f, 1.0f));
-
-		glm::mat4 Save = Model;
-
-		if (rot)
+		Model = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
+		
+		if (x_is_pressed || y_is_pressed || z_is_pressed)
 		{
-			x_angle += 0.005f;
-			y_angle += 0.01f;
-			z_angle += 0.015f;
+			Model = glm::rotate(Model, angle, glm::vec3{x_is_pressed, y_is_pressed, z_is_pressed});
 		}
 
+		glm::mat4 Save = Model;
 		Model = glm::translate(Model, glm::vec3(1.5, 0.0, 0.0));
-		Model = glm::scale(Model, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
 
 		// Diese Informationen (Projection, View, Model) m�ssen geeignet der Grafikkarte �bermittelt werden,
 		// damit sie beim Zeichnen von Objekten ber�cksichtigt werden k�nnen.
-		sendMVP(); // send teapot
+		sendMVP();
 
 		// Nachdem der GC in der Grafikkarte aktuell ist, also z. B. auch ein sendMVP ausgef�hrt wurde,
 		// zeichen wir hier nun einen W�rfel. Dazu werden in "drawWireCube" die Eckpunkte zur Grafikkarte
@@ -421,22 +329,14 @@ int main(void)
 		// Das werden wir uns sp�ter noch genauer anschauen. (Schauen Sie sich die schwarzen Linien genau an,
 		// und �berlegen Sie sich, dass das wirklich ein W�rfel ist, der perspektivisch verzerrt ist.)
 		// Die Darstellung nennt man �brigens "im Drahtmodell".
-
-		// drawWireCube();
 		// drawCube();
-
-		glBindVertexArray(VertexArrayIDTeapot);
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
+		Model = Save;
 		Model = glm::scale(Model, glm::vec3(0.5, 0.5, 0.5));
-		sendMVP(); // send ball
-		Model = Save;
-		zeichneKS();
-		Save = Model;
-		Model = glm::rotate(Model, roboter_rot[3], glm::vec3(0.0f, 0.0f, 1.0f));
-		zeichneRoboter(0.5f);
-		Model = Save;
-
+		sendMVP();
+		drawSphere(10, 10);
+		// zeichneKS();
 
 		// Bildende.
 		// Bilder werden in den Bildspeicher gezeichnet (so schnell wie es geht.).
@@ -462,8 +362,6 @@ int main(void)
 	glDeleteProgram(programID);
 	glDeleteBuffers(1, &normalbuffer);
 	glDeleteBuffers(1, &vertexbuffer);
-	glDeleteBuffers(1, &uvbuffer);
-	// glDeleteTextures(1, &Texture);
 
 	// Schie�en des OpenGL-Fensters und beenden von GLFW.
 	glfwTerminate();
