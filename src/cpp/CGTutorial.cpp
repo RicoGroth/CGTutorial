@@ -43,6 +43,8 @@ using namespace glm;
 #include "objloader.hpp"
 #include "texture.hpp"
 
+#define ROBOT_LIGHT
+
 float x_angle, y_angle, z_angle = 0.0f;
 float roboter_rot[4]{};
 float x_pos, y_pos, z_pos = 0.0f;
@@ -224,6 +226,12 @@ void zeichneRoboter(float height)
 	Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 2 * height));
 	Model = glm::rotate(Model, roboter_rot[0], glm::vec3(1.0f, 0.0f, 0.0f));
 	zeichneSeg(height);
+	
+	#ifdef ROBOT_LIGHT
+	glm::vec4 lightPos = Model * glm::vec4(0.0f, 0.0f, 2 * height, 1.0f);
+	glUniform3f(glGetUniformLocation(programID, "LightPosition_worldspace"), lightPos.x, lightPos.y, lightPos.z);
+	#endif
+	
 	Model = Save;
 }
 
@@ -285,7 +293,7 @@ int main(void)
 	// Der Wertebereich in OpenGL geht nicht von 0 bis 255, sondern von 0 bis 1, hier sind Werte
 	// fuer R, G und B angegeben, der vierte Wert alpha bzw. Transparenz ist beliebig, da wir keine
 	// Transparenz verwenden. Zu den Farben sei auf die entsprechende Vorlesung verwiesen !
-	glClearColor(1.0f, 1.0f, 0.6f, 0.0f);
+	glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
 
 	// Kreieren von Shadern aus den angegebenen Dateien, kompilieren und linken und in
 	// die Grafikkarte �bertragen.
@@ -359,10 +367,11 @@ int main(void)
 						  0,		  // Eckpunkte direkt hintereinander gespeichert
 						  (void *)0); // abweichender Datenanfang ?
 
-	// Light
+	// TODO: Light
+	#ifndef ROBOT_LIGHT
 	glm::vec3 lightPos = glm::vec3(4, 4, -4);
 	glUniform3f(glGetUniformLocation(programID, "LightPosition_worldspace"), lightPos.x, lightPos.y, lightPos.z);
-	// Alles ist vor	print_usage();bereitet, jetzt kann die Eventloop laufen...
+	#endif
 	while (!glfwWindowShouldClose(window))
 	{
 
