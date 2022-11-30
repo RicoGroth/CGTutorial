@@ -152,6 +152,19 @@ void write_data(GLuint* buffer_ptr, GLsizeiptr buffer_size, const void* buffer_d
 
 }
 
+void draw_teapot(const std::vector<glm::vec3>& vertices, GLuint programID, GLuint VertexArrayIDTeapot)
+{
+	save_and_restore([VertexArrayIDTeapot, programID, &vertices]() -> void {
+			Model = glm::translate(Model, glm::vec3(1.5, 0.0, 0.0));
+			Model = glm::scale(Model, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
+			sendMVP(programID);
+			glBindVertexArray(VertexArrayIDTeapot);
+			glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+			Model = glm::scale(Model, glm::vec3(0.5, 0.5, 0.5));
+			sendMVP(programID);
+		});
+}
+
 int main(void)
 {
 	if (!glfwInit())
@@ -195,11 +208,11 @@ int main(void)
 	glBindTexture(GL_TEXTURE_2D, loadBMP_custom(RESOURCES_DIR "/mandrill.bmp"));
 
 	write_data(&normalbuffer, normals.size() * sizeof(glm::vec3), (const void*)&normals[0], 2);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	write_data(&vertexbuffer, vertices.size() * sizeof(glm::vec3), (const void*)&vertices[0], 0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	write_data(&uvbuffer, uvs.size() * sizeof(glm::vec2), (const void*)&uvs[0], 1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 	glUniform1i(glGetUniformLocation(programID, "myTextureSampler"), 0);
 
 	glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
@@ -214,15 +227,7 @@ int main(void)
 		Model = glm::rotate(Model, angle.x, glm::vec3(1.0f, 0.0f, 0.0f));
 		Model = glm::rotate(Model, angle.y, glm::vec3(0.0f, 1.0f, 0.0f));
 		Model = glm::rotate(Model, angle.z, glm::vec3(0.0f, 0.0f, 1.0f));
-		save_and_restore([VertexArrayIDTeapot, programID, &vertices]() -> void {
-			Model = glm::translate(Model, glm::vec3(1.5, 0.0, 0.0));
-			Model = glm::scale(Model, glm::vec3(1.0 / 1000.0, 1.0 / 1000.0, 1.0 / 1000.0));
-			sendMVP(programID);
-			glBindVertexArray(VertexArrayIDTeapot);
-			glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-			Model = glm::scale(Model, glm::vec3(0.5, 0.5, 0.5));
-			sendMVP(programID);
-		});
+		draw_teapot(vertices, programID, VertexArrayIDTeapot);
 		draw_coordinate_system(programID);
 		Model = glm::rotate(Model, robot_modules.w, glm::vec3(0.0f, 0.0f, 1.0f));
 		draw_robot(0.5f, programID);
